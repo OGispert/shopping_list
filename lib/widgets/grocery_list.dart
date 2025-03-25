@@ -13,9 +13,9 @@ class _GroceryListState extends State<GroceryList> {
   final List<GroceryItem> groceryItems = [];
 
   void addItem() async {
-    final newItem = await Navigator.of(
-      context,
-    ).push<GroceryItem>(MaterialPageRoute(builder: (context) => NewItem()));
+    final newItem = await Navigator.of(context).push<GroceryItem>(
+      MaterialPageRoute(builder: (context) => NewItem(mode: PageMode.newItem)),
+    );
 
     if (newItem == null) {
       return;
@@ -29,6 +29,22 @@ class _GroceryListState extends State<GroceryList> {
   void removeItem(GroceryItem item) {
     setState(() {
       groceryItems.remove(item);
+    });
+  }
+
+  void editItem(GroceryItem item, int index) async {
+    final editedItem = await Navigator.of(context).push<GroceryItem>(
+      MaterialPageRoute(
+        builder: (context) => NewItem(mode: PageMode.editItem, item: item),
+      ),
+    );
+
+    if (editedItem == null) {
+      return;
+    }
+    setState(() {
+      groceryItems.remove(item);
+      groceryItems.insert(index, editedItem);
     });
   }
 
@@ -59,6 +75,9 @@ class _GroceryListState extends State<GroceryList> {
                   color: groceryItems[index].category.color,
                 ),
                 trailing: Text(groceryItems[index].quantity.toString()),
+                onTap: () {
+                  editItem(groceryItems[index], index);
+                },
               ),
             ),
       );

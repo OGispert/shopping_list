@@ -3,8 +3,13 @@ import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
 import 'package:shopping_list/models/grocery_item.dart';
 
+enum PageMode { newItem, editItem }
+
 class NewItem extends StatefulWidget {
-  const NewItem({super.key});
+  const NewItem({super.key, required this.mode, this.item});
+
+  final PageMode mode;
+  final GroceryItem? item;
 
   @override
   State<NewItem> createState() {
@@ -17,9 +22,19 @@ class _NewItem extends State<NewItem> {
 
   var enteredName = '';
   var enteredQuantity = 1;
-  Category? selectedCategory;
+  var selectedCategory = categories[Categories.vegetables]!;
 
-  void addItem() {
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    selectedCategory =
+        widget.mode == PageMode.newItem
+            ? selectedCategory
+            : (widget.item?.category ?? selectedCategory);
+  }
+
+  void saveItem() {
     if (formKey.currentState?.validate() == true) {
       formKey.currentState?.save();
       Navigator.of(context).pop(
@@ -27,7 +42,7 @@ class _NewItem extends State<NewItem> {
           id: UniqueKey().toString(),
           name: enteredName,
           quantity: enteredQuantity,
-          category: selectedCategory!,
+          category: selectedCategory,
         ),
       );
     }
@@ -35,8 +50,10 @@ class _NewItem extends State<NewItem> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isNewMode = widget.mode == PageMode.newItem;
+
     return Scaffold(
-      appBar: AppBar(title: Text('Add a new item')),
+      appBar: AppBar(title: Text(isNewMode ? 'Add a new item' : 'Edit item')),
       body: Padding(
         padding: EdgeInsets.all(16),
         child: Form(
@@ -46,6 +63,7 @@ class _NewItem extends State<NewItem> {
               TextFormField(
                 maxLength: 50,
                 decoration: InputDecoration(label: Text('Name')),
+                initialValue: isNewMode ? '' : (widget.item?.name ?? ''),
                 onTapOutside: (PointerDownEvent event) {
                   FocusManager.instance.primaryFocus?.unfocus();
                 },
@@ -70,7 +88,10 @@ class _NewItem extends State<NewItem> {
                   Expanded(
                     child: TextFormField(
                       decoration: InputDecoration(label: Text('Quantity')),
-                      initialValue: enteredQuantity.toString(),
+                      initialValue:
+                          isNewMode
+                              ? enteredQuantity.toString()
+                              : (widget.item?.quantity.toString() ?? ''),
                       onTapOutside: (PointerDownEvent event) {
                         FocusManager.instance.primaryFocus?.unfocus();
                       },
@@ -94,7 +115,8 @@ class _NewItem extends State<NewItem> {
                   SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField(
-                      hint: Text('Category'),
+                      value:
+                          isNewMode ? selectedCategory : widget.item?.category,
                       validator: (value) {
                         if (value == null) {
                           return 'A category must be selected.';
@@ -118,10 +140,11 @@ class _NewItem extends State<NewItem> {
                             ),
                           ),
                       ],
-                      onSaved: (value) {
-                        selectedCategory = value;
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCategory = value!;
+                        });
                       },
-                      onChanged: (value) {},
                     ),
                   ),
                 ],
@@ -137,7 +160,10 @@ class _NewItem extends State<NewItem> {
                     child: Text('Reset'),
                   ),
                   SizedBox(width: 16),
-                  ElevatedButton(onPressed: addItem, child: Text('Add Item')),
+                  ElevatedButton(
+                    onPressed: saveItem,
+                    child: Text(isNewMode ? 'Add Item' : 'Save Item'),
+                  ),
                 ],
               ),
             ],
