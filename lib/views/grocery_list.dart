@@ -37,6 +37,7 @@ class _GroceryListState extends State<GroceryList> {
         setState(() {
           error = 'Error fetching the data! Please try again later.';
           isLoading = false;
+          return;
         });
       }
 
