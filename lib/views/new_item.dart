@@ -46,6 +46,41 @@ class _NewItem extends State<NewItem> {
 
       final url = Uri.https(
         'flutter-app-15e03-default-rtdb.firebaseio.com',
+        'shopping-list/${widget.item?.id}.json',
+      );
+
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'name': enteredName,
+          'quantity': enteredQuantity,
+          'category': selectedCategory.title,
+        }),
+      );
+
+      if (response.statusCode == 200 && context.mounted) {
+        Navigator.of(context).pop(
+          GroceryItem(
+            id: widget.item?.id ?? '',
+            name: enteredName,
+            quantity: enteredQuantity,
+            category: selectedCategory,
+          ),
+        );
+      }
+    }
+  }
+
+  void addItem() async {
+    if (formKey.currentState?.validate() == true) {
+      formKey.currentState?.save();
+      setState(() {
+        isSending = true;
+      });
+
+      final url = Uri.https(
+        'flutter-app-15e03-default-rtdb.firebaseio.com',
         'shopping-list.json',
       );
 
@@ -189,7 +224,12 @@ class _NewItem extends State<NewItem> {
                   ),
                   SizedBox(width: 16),
                   ElevatedButton(
-                    onPressed: isSending ? null : saveItem,
+                    onPressed:
+                        isSending
+                            ? null
+                            : isNewMode
+                            ? addItem
+                            : saveItem,
                     child:
                         isSending
                             ? SizedBox(
