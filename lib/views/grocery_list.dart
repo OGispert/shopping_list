@@ -21,48 +21,55 @@ class _GroceryListState extends State<GroceryList> {
   @override
   void initState() {
     super.initState();
-    reloadItems();
+    loadItems();
   }
 
-  void reloadItems() async {
+  void loadItems() async {
     final url = Uri.https(
       'flutter-app-15e03-default-rtdb.firebaseio.com',
       'shopping-list.json',
     );
 
-    final response = await http.get(url);
+    try {
+      final response = await http.get(url);
 
-    if (response.statusCode >= 400) {
+      if (response.statusCode >= 400 || response.body == 'null') {
+        setState(() {
+          error = 'Error fetching the data! Please try again later.';
+          isLoading = false;
+        });
+      }
+
+      final Map<String, dynamic> jsonItems = json.decode(response.body);
+      final List<GroceryItem> tempItems = [];
+      for (final item in jsonItems.entries) {
+        final category =
+            categories.entries
+                .firstWhere(
+                  (catItem) => catItem.value.title == item.value['category'],
+                )
+                .value;
+
+        tempItems.add(
+          GroceryItem(
+            id: item.key,
+            name: item.value['name'],
+            quantity: item.value['quantity'],
+            category: category,
+          ),
+        );
+      }
+
       setState(() {
-        error = 'Error to fetch data. Please try again later.';
+        groceryItems = tempItems;
+        isLoading = false;
+      });
+    } catch (err) {
+      setState(() {
+        error = 'Something went wrong! Please try again later.';
         isLoading = false;
       });
     }
-
-    final Map<String, dynamic> jsonItems = json.decode(response.body);
-    final List<GroceryItem> tempItems = [];
-    for (final item in jsonItems.entries) {
-      final category =
-          categories.entries
-              .firstWhere(
-                (catItem) => catItem.value.title == item.value['category'],
-              )
-              .value;
-
-      tempItems.add(
-        GroceryItem(
-          id: item.key,
-          name: item.value['name'],
-          quantity: item.value['quantity'],
-          category: category,
-        ),
-      );
-    }
-
-    setState(() {
-      groceryItems = tempItems;
-      isLoading = false;
-    });
   }
 
   void addItem() async {
@@ -80,23 +87,33 @@ class _GroceryListState extends State<GroceryList> {
   }
 
   void removeItem(GroceryItem item) async {
+    final index = groceryItems.indexOf(item);
+
+    setState(() {
+      groceryItems.remove(item);
+    });
+
     final url = Uri.https(
       'flutter-app-15e03-default-rtdb.firebaseio.com',
       'shopping-list/${item.id}.json',
     );
 
-    final response = await http.delete(url);
-
-    if (response.statusCode != 200) {
-      return;
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode != 200) {
+        setState(() {
+          groceryItems.insert(index, item);
+        });
+      }
+    } catch (err) {
+      setState(() {
+        groceryItems.insert(index, item);
+      });
     }
-
-    setState(() {
-      groceryItems.remove(item);
-    });
   }
 
-  void editItem(GroceryItem item, int index) async {
+  void editItem(GroceryItem item) async {
+    final index = groceryItems.indexOf(item);
     final editedItem = await Navigator.of(context).push<GroceryItem>(
       MaterialPageRoute(
         builder: (context) => NewItem(mode: PageMode.editItem, item: item),
@@ -148,7 +165,7 @@ class _GroceryListState extends State<GroceryList> {
                 ),
                 trailing: Text(groceryItems[index].quantity.toString()),
                 onTap: () {
-                  editItem(groceryItems[index], index);
+                  editItem(groceryItems[index]);
                 },
               ),
             ),
