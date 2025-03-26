@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
 import 'package:shopping_list/models/category.dart';
 import 'package:shopping_list/models/grocery_item.dart';
+import 'package:http/http.dart' as http;
 
 enum PageMode { newItem, editItem }
 
@@ -19,6 +22,7 @@ class NewItem extends StatefulWidget {
 
 class _NewItem extends State<NewItem> {
   final formKey = GlobalKey<FormState>();
+  var isSending = false;
 
   var enteredName = '';
   var enteredQuantity = 1;
@@ -26,7 +30,6 @@ class _NewItem extends State<NewItem> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     selectedCategory =
         widget.mode == PageMode.newItem
@@ -34,17 +37,39 @@ class _NewItem extends State<NewItem> {
             : (widget.item?.category ?? selectedCategory);
   }
 
-  void saveItem() {
+  void saveItem() async {
     if (formKey.currentState?.validate() == true) {
       formKey.currentState?.save();
-      Navigator.of(context).pop(
-        GroceryItem(
-          id: UniqueKey().toString(),
-          name: enteredName,
-          quantity: enteredQuantity,
-          category: selectedCategory,
-        ),
+      setState(() {
+        isSending = true;
+      });
+
+      final url = Uri.https(
+        'flutter-app-15e03-default-rtdb.firebaseio.com',
+        'shopping-list.json',
       );
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'name': enteredName,
+          'quantity': enteredQuantity,
+          'category': selectedCategory.title,
+        }),
+      );
+
+      if (response.statusCode == 200 && context.mounted) {
+        final Map<String, dynamic> responseDate = jsonDecode(response.body);
+        Navigator.of(context).pop(
+          GroceryItem(
+            id: responseDate['name'],
+            name: enteredName,
+            quantity: enteredQuantity,
+            category: selectedCategory,
+          ),
+        );
+      }
     }
   }
 
@@ -154,15 +179,25 @@ class _NewItem extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      formKey.currentState?.reset();
-                    },
+                    onPressed:
+                        isSending
+                            ? null
+                            : () {
+                              formKey.currentState?.reset();
+                            },
                     child: Text('Reset'),
                   ),
                   SizedBox(width: 16),
                   ElevatedButton(
-                    onPressed: saveItem,
-                    child: Text(isNewMode ? 'Add Item' : 'Save Item'),
+                    onPressed: isSending ? null : saveItem,
+                    child:
+                        isSending
+                            ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator.adaptive(),
+                            )
+                            : Text(isNewMode ? 'Add Item' : 'Save Item'),
                   ),
                 ],
               ),
